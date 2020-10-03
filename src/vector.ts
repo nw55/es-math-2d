@@ -125,7 +125,7 @@ export class Vector2 implements Vector2Like {
         );
     }
 
-    translateAndScale(transform: OffsetScaleTransformation | null, inverse = false) {
+    scaleAndTranslate(transform: OffsetScaleTransformation | null, inverse = false) {
         if (transform === null)
             return this;
         if (inverse) {

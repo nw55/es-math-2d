@@ -39,6 +39,8 @@ export class Rect implements RectLike {
     static from(rect: [number, number, number, number] | RectLike) {
         if (Array.isArray(rect))
             return new Rect(rect[0], rect[1], rect[2], rect[3]);
+        if (rect instanceof Rect)
+            return rect;
         return new Rect(rect.left, rect.top, rect.right, rect.bottom);
     }
 
@@ -48,6 +50,10 @@ export class Rect implements RectLike {
     readonly bottom: number;
 
     constructor(left: number, top: number, right: number, bottom: number) {
+        if (left > right)
+            throw new Error('invalid argument: left > right');
+        if (top > bottom)
+            throw new Error('invalid argument: top > bottom');
         this.left = left;
         this.top = top;
         this.right = right;
@@ -85,13 +91,23 @@ export class Rect implements RectLike {
         return V((this.left + this.right) / 2, (this.top + this.bottom) / 2);
     }
 
-    get integerBounds() {
-        return new Rect(
-            Math.floor(this.left),
-            Math.floor(this.top),
-            1 - Math.ceil(-this.right),
-            1 - Math.ceil(-this.bottom)
-        );
+    getIntegerBounds(inclusiveUpperBounds = false) {
+        if (inclusiveUpperBounds) {
+            return new Rect(
+                Math.floor(this.left),
+                Math.floor(this.top),
+                1 - Math.ceil(-this.right),
+                1 - Math.ceil(-this.bottom)
+            );
+        }
+        else {
+            return new Rect(
+                Math.floor(this.left),
+                Math.floor(this.top),
+                Math.ceil(this.right),
+                Math.ceil(this.bottom)
+            );
+        }
     }
 
     at(pos: Vector2Like) {
@@ -204,29 +220,20 @@ export class Rect implements RectLike {
         return rect.left >= this.left && rect.right <= this.right && rect.top >= this.top && rect.bottom <= this.bottom;
     }
 
-    includes(v: Vector2Like) {
-        return v.x >= this.left && v.x < this.right && v.y >= this.top && v.y < this.bottom;
+    includes(v: Vector2Like, inclusiveUpperBounds = false) {
+        if (inclusiveUpperBounds)
+            return v.x >= this.left && v.x <= this.right && v.y >= this.top && v.y <= this.bottom;
+        else
+            return v.x >= this.left && v.x < this.right && v.y >= this.top && v.y < this.bottom;
     }
 
-    translateAndScale(transform: OffsetScaleTransformation | null, inverse = false) {
+    scaleAndTranslate(transform: OffsetScaleTransformation | null, inverse = false) {
         if (transform === null)
             return this;
-        if (inverse) {
-            return new Rect(
-                (this.left - transform.originOffset.x) / transform.scale,
-                (this.top - transform.originOffset.y) / transform.scale,
-                (this.right - transform.originOffset.x) / transform.scale,
-                (this.bottom - transform.originOffset.y) / transform.scale
-            );
-        }
-        else {
-            return new Rect(
-                this.left * transform.scale + transform.originOffset.x,
-                this.top * transform.scale + transform.originOffset.y,
-                this.right * transform.scale + transform.originOffset.x,
-                this.bottom * transform.scale + transform.originOffset.y
-            );
-        }
+        return Rect.fromPoints(
+            this.topLeft.scaleAndTranslate(transform, inverse),
+            this.bottomRight.scaleAndTranslate(transform, inverse)
+        );
     }
 
     excatEquals(other: Rect) {
